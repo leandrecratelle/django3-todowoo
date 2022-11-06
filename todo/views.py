@@ -1,8 +1,10 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth.models import User
 from django.contrib.auth import login, logout, authenticate
 from django.db import IntegrityError
+from .forms import TodoForm
+from .models import Todo
 
 
 def signupuser(request):
@@ -60,4 +62,52 @@ def home(request):
     return render(request, 'todo/home.html')
 
 def currenttodos(request):
-    return render(request, 'todo/current.html')
+    todos = Todo.objects.filter(user=request.user, completed_date__isnull=True)
+
+    return render(request, 'todo/current.html', {'todos':todos})
+
+def createtodo(request):
+    if request.method == 'GET':
+        return render(request, 'todo/createtodo.html', {'form':TodoForm()})
+
+    else:
+        try:
+            # Get data from form
+            form = TodoForm(request.POST)
+
+            # Save but don't commit to db
+            new_todo = form.save(commit=False)
+
+            # Add user to new todo
+            new_todo.user = request.user
+
+            # Commit to db
+            new_todo.save()
+
+            return redirect('currenttodos')
+
+        except ValueError:
+            return render(request, 'todo/createtodo.html', {'form':TodoForm(), 'error':'Bad data sent in form, try again.'})
+
+def viewtodo(request, todo_pk):
+    # Get object
+    todo = get_object_or_404(Todo, pk=todo_pk)
+
+    if request.method == 'GET':
+        # Create edit form
+        form = TodoForm(instance=todo)
+
+        return render(request, 'todo/viewtodo.html', {'todo':todo, 'form':form})
+
+    else:
+        try:
+            # Get data from form
+            form = TodoForm(request.POST, instance=todo)
+
+            # Save object
+            form.save()
+
+            return redirect('currenttodos')
+
+        except ValueError:
+            return render(request, 'todo/viewtodo.html', {'todo':todo, 'form':form, 'error':'Bad data sent in form, try again.'})
