@@ -5,6 +5,8 @@ from django.contrib.auth import login, logout, authenticate
 from django.db import IntegrityError
 from .forms import TodoForm
 from .models import Todo
+from django.utils import timezone
+from django.contrib.auth.decorators import login_required
 
 
 def signupuser(request):
@@ -61,11 +63,19 @@ def loginuser(request):
 def home(request):
     return render(request, 'todo/home.html')
 
+@login_required
 def currenttodos(request):
     todos = Todo.objects.filter(user=request.user, completed_date__isnull=True)
 
     return render(request, 'todo/current.html', {'todos':todos})
 
+@login_required
+def completedtodos(request):
+    todos = Todo.objects.filter(user=request.user, completed_date__isnull=False).order_by('-completed_date')
+
+    return render(request, 'todo/completedtodos.html', {'todos':todos})
+
+@login_required
 def createtodo(request):
     if request.method == 'GET':
         return render(request, 'todo/createtodo.html', {'form':TodoForm()})
@@ -91,7 +101,7 @@ def createtodo(request):
 
 def viewtodo(request, todo_pk):
     # Get object
-    todo = get_object_or_404(Todo, pk=todo_pk)
+    todo = get_object_or_404(Todo, pk=todo_pk, user=request.user)
 
     if request.method == 'GET':
         # Create edit form
@@ -111,3 +121,28 @@ def viewtodo(request, todo_pk):
 
         except ValueError:
             return render(request, 'todo/viewtodo.html', {'todo':todo, 'form':form, 'error':'Bad data sent in form, try again.'})
+
+@login_required
+def completetodo(request, todo_pk):
+    # Get object
+    todo = get_object_or_404(Todo, pk=todo_pk, user=request.user)
+
+    if request.method == 'POST':
+        # Update completed datetime
+        todo.completed_date = timezone.now()
+
+        # Save object
+        todo.save()
+
+        return redirect('currenttodos')
+
+@login_required
+def deletetodo(request, todo_pk):
+    # Get object
+    todo = get_object_or_404(Todo, pk=todo_pk, user=request.user)
+
+    if request.method == 'POST':
+        # Delete object
+        todo.delete()
+
+        return redirect('currenttodos')
