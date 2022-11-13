@@ -61,11 +61,15 @@ def loginuser(request):
             return redirect('currenttodos')
 
 def home(request):
+    # If user is authenticated, redirect to current todos
+    if request.user.is_authenticated:
+        return redirect('currenttodos')
+
     return render(request, 'todo/home.html')
 
 @login_required
 def currenttodos(request):
-    todos = Todo.objects.filter(user=request.user, completed_date__isnull=True)
+    todos = Todo.objects.filter(user=request.user, completed_date__isnull=True).order_by('-created_date')
 
     return render(request, 'todo/current.html', {'todos':todos})
 
